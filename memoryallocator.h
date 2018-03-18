@@ -60,119 +60,119 @@ namespace ATL
         static constexpr size_t hb_size = vp_size + pad_bytes + block_size;
         static constexpr size_t bytes_allocated = hb_size * blocks;
 
-        protected:
+    protected:
 
-            static constexpr size_t b_size = block_size;
+        static constexpr size_t b_size = block_size;
         
-        public:
+    public:
             
-            /**
-             * @brief Construct a new Memory Allocator object.
-             * 
-             */
-            MemoryAllocator() : data_(nullptr), free_list_(nullptr)
+        /**
+         * @brief Construct a new Memory Allocator object.
+         * 
+         */
+        MemoryAllocator() : data_(nullptr), free_list_(nullptr)
+        {
+            data_ = new uchar[bytes_allocated];
+
+            std::memset(data_, 0, bytes_allocated);
+
+            for (size_t i = 0; i < blocks; ++i)
             {
-                data_ = new uchar[bytes_allocated];
-
-                std::memset(data_, 0, bytes_allocated);
-
-                for (size_t i = 0; i < blocks; ++i)
-                {
-                    std::memset(data_ + vp_size + (i * hb_size), Pattern::UNALLOCATED, pad_bytes);
-                    push_list(reinterpret_cast<List*>(data_ + (i * hb_size)));
-                }
+                std::memset(data_ + vp_size + (i * hb_size), Pattern::UNALLOCATED, pad_bytes);
+                push_list(reinterpret_cast<List*>(data_ + (i * hb_size)));
             }
+        }
 
-            /**
-             * @brief Destructor
-             * 
-             */
-            ~MemoryAllocator() noexcept
-            {
-                delete [] data_;
-            }
+        /**
+         * @brief Destructor
+         * 
+         */
+        ~MemoryAllocator() noexcept
+        {
+            delete [] data_;
+        }
 
-            /**
-             * @brief Allocates memory with O(1) performance.
-             * 
-             * @return void* 
-             */
-            void* Allocate()
-            {
-                if (!free_list_) throw std::runtime_error("Out of blocks.");
+        /**
+         * @brief Allocates memory with O(1) performance.
+         * 
+         * @return void* 
+         */
+        void* Allocate()
+        {
+            if (!free_list_) throw std::runtime_error("Out of blocks.");
 
-                uchar* memory = reinterpret_cast<uchar*>(free_list_) + vp_size;
+            uchar* memory = reinterpret_cast<uchar*>(free_list_) + vp_size;
 
-                // safety check
-                for (size_t i = 0; i < pad_bytes; ++i)
-                    if (memory[i] != Pattern::UNALLOCATED)
-                        throw std::runtime_error("Corrupted block detected!");
+            // safety check
+            for (size_t i = 0; i < pad_bytes; ++i)
+                if (memory[i] != Pattern::UNALLOCATED)
+                    throw std::runtime_error("Corrupted block detected!");
 
-                pop_list();
+            pop_list();
 
-                std::memset(memory, Pattern::ALLOCATED, pad_bytes);
+            std::memset(memory, Pattern::ALLOCATED, pad_bytes);
 
-                return memory + pad_bytes;
-            }
+            return memory + pad_bytes;
+        }
 
-            /**
-             * @brief Frees memory.
-             * 
-             * @param block 
-             */
-            void Free(void* block) noexcept
-            {
-                if (!block) std::abort();
+        /**
+         * @brief Frees memory.
+         * 
+         * @param block 
+         */
+        void Free(void* block) noexcept
+        {
+            if (!block) std::abort();
 
-                uchar* mem = reinterpret_cast<uchar*>(block) - pad_bytes;
+            uchar* mem = reinterpret_cast<uchar*>(block) - pad_bytes;
 
-                // safety check
-                for (size_t i = 0; i < pad_bytes; ++i)
-                    if (mem[i] != Pattern::ALLOCATED)
-                        std::abort();
+            // safety check
+            for (size_t i = 0; i < pad_bytes; ++i)
+                if (mem[i] != Pattern::ALLOCATED)
+                    std::abort();
 
-                std::memset(mem, Pattern::UNALLOCATED, pad_bytes);
+            std::memset(mem, Pattern::UNALLOCATED, pad_bytes);
 
-                push_list(reinterpret_cast<List*>(mem - vp_size));
-            }
+            push_list(reinterpret_cast<List*>(mem - vp_size));
+        }
 
-            /**
-             * @brief Whether or not there is room for more allocations.
-             * 
-             * @return true 
-             * @return false 
-             */
-            bool CanAllocate() const noexcept
-            {
-                return free_list_;
-            }
-            
-            // prevent copying of any kind
-            MemoryAllocator& operator=(MemoryAllocator& rhs) = delete;
-            MemoryAllocator(const MemoryAllocator& rhs) = delete;
-            MemoryAllocator(MemoryAllocator&& rhs) = delete;
+        /**
+         * @brief Whether or not there is room for more allocations.
+         * 
+         * @return true 
+         * @return false 
+         */
+        bool CanAllocate() const noexcept
+        {
+            return free_list_;
+        }
+        
+        // prevent copying of any kind
+        MemoryAllocator& operator=(MemoryAllocator& rhs) = delete;
+        MemoryAllocator(const MemoryAllocator& rhs) = delete;
+        MemoryAllocator(MemoryAllocator&& rhs) = delete;
 
-        private:
+    private:
 
-            /**
-             * @brief Pushes into internal list.
-             * 
-             * @param list 
-             */
-            void push_list(List* list) noexcept
-            {
-                list->next = free_list_;
-                free_list_ = list;
-            }
+        /**
+         * @brief Pushes into internal list.
+         * 
+         * @param list 
+         */
+        void push_list(List* list) noexcept
+        {
+            list->next = free_list_;
+            free_list_ = list;
+        }
 
-            /**
-             * @brief Pops from front.
-             * 
-             */
-            void pop_list() noexcept
-            {
-                free_list_ = free_list_->next;
-            }
+        /**
+         * @brief Pops from front.
+         * 
+         */
+        void pop_list() noexcept
+        {
+            free_list_ = free_list_->next;
+        }
     };
 
     /**
