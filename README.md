@@ -18,7 +18,7 @@ Ready-to-use fixed-size C++ memory allocator.
     int* i = static_cast<int*>(allocator.Allocate());
     allocator.Free(i);
 
-## Using with a class
+## Class/Struct Usage
 
     #include "memoryallocator.h"
 
