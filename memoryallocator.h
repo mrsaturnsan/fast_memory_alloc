@@ -98,7 +98,7 @@ namespace ATL
                 }
 
                 if (!free_list_)
-                    return nullptr;
+                    throw std::runtime_error("Out of blocks.");
 
                 uchar* memory = reinterpret_cast<uchar*>(free_list_) + vp_size;
 
@@ -126,16 +126,16 @@ namespace ATL
              * 
              * @param block 
              */
-            void Free(void* block)
+            void Free(void* block) noexcept
             {
-                if (!block) throw std::runtime_error("Attemping to free nullptr!");
+                if (!block) std::abort();
 
                 uchar* mem = reinterpret_cast<uchar*>(block) - pad_bytes;
 
                 // safety check
                 for (size_t i = 0; i < pad_bytes; ++i)
                     if (mem[i] != Pattern::ALLOCATED)
-                        throw std::runtime_error("Freeing corrupted block!");
+                        std::abort();
 
                 std::memset(mem, Pattern::UNALLOCATED, pad_bytes);
 
