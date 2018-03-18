@@ -126,7 +126,8 @@ namespace ATL
              * 
              * @param block 
              */
-            void Free(void* block) noexcept
+            template <typename T>
+            void Free(T* block) noexcept
             {
                 if (!block) std::abort();
 
@@ -136,6 +137,9 @@ namespace ATL
                 for (size_t i = 0; i < pad_bytes; ++i)
                     if (mem[i] != Pattern::ALLOCATED)
                         std::abort();
+                
+                if constexpr (!std::is_same<T, void>::value)
+                    block->~T();
 
                 std::memset(mem, Pattern::UNALLOCATED, pad_bytes);
 
