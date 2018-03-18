@@ -9,7 +9,8 @@ Ready-to-use fixed-size C++ memory allocator.
 - Only allocates memory from the OS once during construction!
 
 ## Basic Usage
-
+    #include "memoryallocator.h"
+    
     // allocate 128 blocks of 32 bytes
     ATL::MemoryAllocator<32, 128> allocator;
 
@@ -17,6 +18,8 @@ Ready-to-use fixed-size C++ memory allocator.
     allocator.Free(i);
 
 ## Using with a class
+
+    #include "memoryallocator.h"
 
     class MyClass
     {
