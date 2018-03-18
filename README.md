@@ -7,6 +7,7 @@ Ready-to-use fixed-size C++ memory allocator.
 - Safe!
 - Fast!
 - Only allocates memory from the OS once during construction!
+- O(1) allocation and deallocation!
 
 ## Basic Usage
     #include "memoryallocator.h"
