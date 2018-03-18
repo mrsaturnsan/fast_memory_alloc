@@ -13,7 +13,7 @@
 
 // macros to make integration easier if making a static class allocator
 #define CREATE_CLASS_NEW(_alloc_name) void* operator new(std::size_t) {return _alloc_name.MemoryAllocator::Allocate();}
-#define CREATE_CLASS_DELETE(_alloc_name) void operator delete(void* ptr) {_alloc_name.MemoryAllocator::Free(ptr);}
+#define CREATE_CLASS_DELETE(_alloc_name) void operator delete(void* ptr) noexcept {_alloc_name.MemoryAllocator::Free(ptr);}
 #define GEN_CLASS_NEW_DEL(_alloc_name) CREATE_CLASS_NEW(_alloc_name) CREATE_CLASS_DELETE(_alloc_name)
 
 namespace ATL
