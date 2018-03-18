@@ -13,7 +13,15 @@
 #include <memory>    /* std::align         */
 
 // macros to make integration easier if making a static class allocator
-#define CREATE_CLASS_NEW(_alloc_name) void* operator new(std::size_t) {return _alloc_name.MemoryAllocator::Allocate();}
+#define CREATE_CLASS_NEW(_alloc_name)                                               \
+void* operator new(std::size_t)                                                     \
+{                                                                                   \
+    void* mem = _alloc_name.AlignCheck(_alloc_name.MemoryAllocator::Allocate());    \
+    if (!mem)                                                                       \
+        throw std::runtime_error("Allocation failed.");                             \
+    return mem;                                                                     \
+}                                                                                   \
+
 #define CREATE_CLASS_DELETE(_alloc_name) void operator delete(void* ptr) noexcept {_alloc_name.MemoryAllocator::Free(ptr);}
 #define GEN_CLASS_NEW_DEL(_alloc_name) CREATE_CLASS_NEW(_alloc_name) CREATE_CLASS_DELETE(_alloc_name)
 
@@ -47,13 +55,15 @@ namespace ATL
         // page of available blocks
         List* free_list_;
 
-        protected:
+        // meta data
+        static constexpr size_t pad_bytes = 2;
+        static constexpr size_t vp_size = sizeof(void*);
+        static constexpr size_t hb_size = vp_size + pad_bytes + block_size;
+        static constexpr size_t bytes_allocated = hb_size * blocks;
 
-            // meta data
-            static constexpr size_t pad_bytes = 2;
-            static constexpr size_t vp_size = sizeof(void*);
-            static constexpr size_t hb_size = vp_size + pad_bytes + block_size;
-            static constexpr size_t bytes_allocated = hb_size * blocks;
+        protected:
+        
+            static constexpr size_t b_size = block_size;
         
         public:
             
@@ -168,29 +178,15 @@ namespace ATL
     };
 
     /**
-     * @brief Gets the least amount of space a block needs.
-     * 
-     * @tparam T 
-     * @return constexpr size_t 
-     */
-    template <typename T>
-    constexpr size_t CalculateBlockSize()
-    {
-        return alignof(T) + sizeof(T);
-    }
-
-    /**
      * @brief Works with the MemoryAllocator to allocate for types.
      * 
      * @tparam T 
      * @tparam blocks 
      */
     template <typename T, size_t blocks>
-    struct TypeAllocator : public MemoryAllocator<CalculateBlockSize<T>(), blocks>
+    struct TypeAllocator : public MemoryAllocator<alignof(T) + sizeof(T), blocks>
     {
         static_assert(!std::is_same<T, void>::value, "Cannot allocate type void.");
-
-        using parent = MemoryAllocator<CalculateBlockSize<T>(), blocks>;
 
         /**
          * @brief Allocates and constructs object.
@@ -203,9 +199,7 @@ namespace ATL
         T* Allocate(Args&&... args)
         {
             // get raw memory
-            void* memory = parent::Allocate();
-            size_t size = parent::hb_size - parent::pad_bytes;
-            void* aligned_storage = std::align(alignof(T), sizeof(T), memory, size);
+            void* aligned_storage = AlignCheck(this->::Allocate());
             
             if (!aligned_storage)
                 throw std::runtime_error("Allocation failed.");
@@ -223,7 +217,19 @@ namespace ATL
             // safety check
             if (!block) std::abort();
             block->~T();
-            parent::Free(block);
+            this->::Free(block);
+        }
+
+        /**
+         * @brief Ensures alignment safety.
+         * 
+         * @param memory 
+         * @return void* 
+         */
+        void* AlignCheck(void* memory) const noexcept
+        {
+            size_t s = this->b_size;
+            return std::align(alignof(T), sizeof(T), memory, s);
         }
     };
 }
