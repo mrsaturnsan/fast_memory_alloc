@@ -198,9 +198,7 @@ namespace ATL
         {
             // get raw memory
             void* aligned_storage = AlignCheck(this->::Allocate());
-            
             if (!aligned_storage) throw std::runtime_error("Allocation failed.");
-                
             return new(aligned_storage) T(args...);
         }
 
