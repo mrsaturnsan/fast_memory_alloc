@@ -7,7 +7,7 @@ int main()
 {
     ATL::MemoryAllocator<32, 128> alloc;
 
-    int* mem = alloc.Allocate<int>(1);
+    auto* mem = alloc.Allocate();
     alloc.Free(mem);
     
     return 0;

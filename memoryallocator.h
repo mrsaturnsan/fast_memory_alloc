@@ -12,7 +12,7 @@
 #include <stdexcept> /* std::runtime_error */
 
 // macros to make integration easier if making a static class allocator
-#define CREATE_CLASS_NEW(_alloc_name) void* operator new(std::size_t) {return _alloc_name.MemoryAllocator::Allocate<void>();}
+#define CREATE_CLASS_NEW(_alloc_name) void* operator new(std::size_t) {return _alloc_name.MemoryAllocator::Allocate();}
 #define CREATE_CLASS_DELETE(_alloc_name) void operator delete(void* ptr) {_alloc_name.MemoryAllocator::Free(ptr);}
 #define GEN_CLASS_NEW_DEL(_alloc_name) CREATE_CLASS_NEW(_alloc_name) CREATE_CLASS_DELETE(_alloc_name)
 
@@ -85,16 +85,16 @@ namespace ATL
              * 
              * @return void* 
              */
-            template <typename T, typename... Args>
+            template <typename T = void, typename... Args>
             T* Allocate(Args&&... args)
             {
-                if constexpr (!std::is_same<T, void>::value)
+                if constexpr (std::is_same<T, void>::value)
                 {
-                    static_assert((alignof(T) + sizeof(T)) <= block_size, "Block cannot hold T.");
+                    static_assert(sizeof...(Args) == 0, "Cannot initialize type void with arguments.");
                 } 
                 else
                 {
-                    static_assert(sizeof...(Args) == 0, "Cannot initialize type void with arguments.");
+                    static_assert((alignof(T) + sizeof(T)) <= block_size, "Block cannot hold T.");
                 }
 
                 if (!free_list_)
