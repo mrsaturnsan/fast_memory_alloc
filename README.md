@@ -40,3 +40,7 @@ Ready-to-use fixed-size C++ memory allocator.
 
     MyClass* mc = new MyClass(1, 2, 3);
     delete mc;
+
+## Requirements
+
+- C++ 17 compliant compiler

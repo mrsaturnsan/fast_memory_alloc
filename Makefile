@@ -1,5 +1,5 @@
 CC = clang++
-CFLAGS = -Wall -Wextra -pedantic -Wconversion -g -std=c++1z
+CFLAGS = -Wall -Wextra -pedantic -Wconversion -Weffc++ -g -std=c++1z
 FILE = main.cpp
 OUT = output.out
 
