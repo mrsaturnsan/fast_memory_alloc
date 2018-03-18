@@ -17,8 +17,7 @@
 void* operator new(std::size_t)                                                     \
 {                                                                                   \
     void* mem = _alloc_name.AlignCheck(_alloc_name.MemoryAllocator::Allocate());    \
-    if (!mem)                                                                       \
-        throw std::runtime_error("Allocation failed.");                             \
+    if (!mem) throw std::runtime_error("Allocation failed.");                       \
     return mem;                                                                     \
 }                                                                                   \
 
@@ -62,7 +61,7 @@ namespace ATL
         static constexpr size_t bytes_allocated = hb_size * blocks;
 
         protected:
-        
+
             static constexpr size_t b_size = block_size;
         
         public:
@@ -100,8 +99,7 @@ namespace ATL
              */
             void* Allocate()
             {
-                if (!free_list_)
-                    throw std::runtime_error("Out of blocks.");
+                if (!free_list_) throw std::runtime_error("Out of blocks.");
 
                 uchar* memory = reinterpret_cast<uchar*>(free_list_) + vp_size;
 
@@ -201,8 +199,7 @@ namespace ATL
             // get raw memory
             void* aligned_storage = AlignCheck(this->::Allocate());
             
-            if (!aligned_storage)
-                throw std::runtime_error("Allocation failed.");
+            if (!aligned_storage) throw std::runtime_error("Allocation failed.");
                 
             return new(aligned_storage) T(args...);
         }
