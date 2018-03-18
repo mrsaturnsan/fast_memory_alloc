@@ -1,7 +1,0 @@
-# exclude
-Makefile
-
-# ignore all of extension
-*.DS_Store
-*.vscode
-*.out
