@@ -1,0 +1,10 @@
+{
+    "files.associations": {
+        "iosfwd": "cpp",
+        "memory": "cpp",
+        "__config": "cpp",
+        "__nullptr": "cpp",
+        "type_traits": "cpp",
+        "vector": "cpp"
+    }
+}

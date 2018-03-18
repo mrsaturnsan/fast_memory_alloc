@@ -1,11 +1,38 @@
 #include "memoryallocator.h"
 
+#include <iostream>
+
+struct MyStruct
+{
+    static ATL::TypeAllocator<MyStruct, 10> alloc;
+
+    int i;
+    int j;
+    int k;
+
+    MyStruct()
+    {
+        std::cout << "Constructed\n";
+    }
+
+    ~MyStruct()
+    {
+        std::cout << "Destructed\n";
+    }
+
+    GEN_CLASS_NEW_DEL(alloc)
+
+};
+
+ATL::TypeAllocator<MyStruct, 10> MyStruct::alloc;
+
+
 int main()
 {
-    ATL::MemoryAllocator<32, 128> alloc;
+    MyStruct* ms = new MyStruct;
 
-    auto* mem = alloc.Allocate();
-    alloc.Free(mem);
+    delete ms;
+
     
     return 0;
 }

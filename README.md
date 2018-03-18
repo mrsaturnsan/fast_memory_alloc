@@ -29,7 +29,7 @@ Ready-to-use fixed-size C++ memory allocator.
         double d_;
 
         public:
-            static ATL::ClassAllocator<MyClass, 128> alloc;
+            static ATL::TypeAllocator<MyClass, 128> alloc;
 
             // overload new and delete operators
             GEN_CLASS_NEW_DEL(alloc)
@@ -37,7 +37,7 @@ Ready-to-use fixed-size C++ memory allocator.
             MyClass(int i, float f, double d) noexcept : i_(i), f_(f), d_(d) {}
     };
 
-    ATL::ClassAllocator<MyClass, 128> MyClass::alloc;
+    ATL::TypeAllocator<MyClass, 128> MyClass::alloc;
 
     MyClass* mc = new MyClass(1, 2, 3);
     delete mc;
