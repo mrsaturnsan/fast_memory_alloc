@@ -10,6 +10,7 @@
 
 #include <cstring>   /* std::memset        */
 #include <stdexcept> /* std::runtime_error */
+#include <memory>    /* std::align         */
 
 // macros to make integration easier if making a static class allocator
 #define CREATE_CLASS_NEW(_alloc_name) void* operator new(std::size_t) {return _alloc_name.MemoryAllocator::Allocate();}
@@ -35,12 +36,6 @@ namespace ATL
             ALLOCATED = 0xBB
         };
 
-        // meta data
-        static constexpr size_t pad_bytes = 3;
-        static constexpr size_t vp_size = sizeof(void*);
-        static constexpr size_t hb_size = vp_size + pad_bytes + block_size;
-        static constexpr size_t bytes_allocated = hb_size * blocks;
-
         // represents a list object
         struct List
         {
@@ -51,6 +46,14 @@ namespace ATL
         uchar* data_;
         // page of available blocks
         List* free_list_;
+
+        protected:
+
+            // meta data
+            static constexpr size_t pad_bytes = 2;
+            static constexpr size_t vp_size = sizeof(void*);
+            static constexpr size_t hb_size = vp_size + pad_bytes + block_size;
+            static constexpr size_t bytes_allocated = hb_size * blocks;
         
         public:
             
@@ -85,18 +88,8 @@ namespace ATL
              * 
              * @return void* 
              */
-            template <typename T = void, typename... Args>
-            T* Allocate(Args&&... args)
+            void* Allocate()
             {
-                if constexpr (std::is_same<T, void>::value)
-                {
-                    static_assert(sizeof...(Args) == 0, "Cannot initialize type void with arguments.");
-                } 
-                else
-                {
-                    static_assert((alignof(T) + sizeof(T)) <= block_size, "Block cannot hold T.");
-                }
-
                 if (!free_list_)
                     throw std::runtime_error("Out of blocks.");
 
@@ -111,14 +104,7 @@ namespace ATL
 
                 std::memset(memory, Pattern::ALLOCATED, pad_bytes);
 
-                if constexpr (std::is_same<T, void>::value)
-                {
-                    return (memory + pad_bytes);
-                }
-                else
-                {
-                    return new(memory + pad_bytes) T(args...);
-                }
+                return memory + pad_bytes;
             }
 
             /**
@@ -126,8 +112,7 @@ namespace ATL
              * 
              * @param block 
              */
-            template <typename T>
-            void Free(T* block) noexcept
+            void Free(void* block) noexcept
             {
                 if (!block) std::abort();
 
@@ -137,9 +122,6 @@ namespace ATL
                 for (size_t i = 0; i < pad_bytes; ++i)
                     if (mem[i] != Pattern::ALLOCATED)
                         std::abort();
-                
-                if constexpr (!std::is_same<T, void>::value)
-                    block->~T();
 
                 std::memset(mem, Pattern::UNALLOCATED, pad_bytes);
 
@@ -186,11 +168,62 @@ namespace ATL
     };
 
     /**
-     * @brief Works with the MemoryAllocator to allocate for classes.
+     * @brief Gets the least amount of space a block needs.
+     * 
+     * @tparam T 
+     * @return constexpr size_t 
+     */
+    template <typename T>
+    constexpr size_t CalculateBlockSize()
+    {
+        return alignof(T) + sizeof(T);
+    }
+
+    /**
+     * @brief Works with the MemoryAllocator to allocate for types.
      * 
      * @tparam T 
      * @tparam blocks 
      */
     template <typename T, size_t blocks>
-    struct ClassAllocator : public MemoryAllocator<sizeof(T) + alignof(T), blocks> {};
+    struct TypeAllocator : public MemoryAllocator<CalculateBlockSize<T>(), blocks>
+    {
+        static_assert(!std::is_same<T, void>::value, "Cannot allocate type void.");
+
+        using parent = MemoryAllocator<CalculateBlockSize<T>(), blocks>;
+
+        /**
+         * @brief Allocates and constructs object.
+         * 
+         * @tparam Args 
+         * @param args 
+         * @return T* 
+         */
+        template <typename... Args>
+        T* Allocate(Args&&... args)
+        {
+            // get raw memory
+            void* memory = parent::Allocate();
+            size_t size = parent::hb_size - parent::pad_bytes;
+            void* aligned_storage = std::align(alignof(T), sizeof(T), memory, size);
+            
+            if (!aligned_storage)
+                throw std::runtime_error("Allocation failed.");
+                
+            return new(aligned_storage) T(args...);
+        }
+
+        /**
+         * @brief Frees memory block.
+         * 
+         * @param block 
+         */
+        void Free(T* block) noexcept
+        {
+            // safety check
+            if (!block) std::abort();
+            block->~T();
+            parent::Free(block);
+        }
+    };
 }
