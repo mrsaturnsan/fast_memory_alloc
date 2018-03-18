@@ -14,7 +14,7 @@ Ready-to-use fixed-size C++ memory allocator.
     // allocate 128 blocks of 32 bytes
     ATL::MemoryAllocator<32, 128> allocator;
 
-    int* i = allocator.Allocate(10);
+    int* i = allocator.Allocate<int>(10);
     allocator.Free(i);
 
 ## Using with a class
