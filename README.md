@@ -1,4 +1,4 @@
-# fast_memory_alloc
+# Fast Memory Allocator
 
 Ready-to-use fixed-size C++ memory allocator.
 
