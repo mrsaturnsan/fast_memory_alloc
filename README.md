@@ -48,6 +48,8 @@ Ready-to-use fixed-size C++ memory allocator.
 
 ## Test Cases
 
+    #define SIZE 5000000
+
     struct Test
     {
         char c[128];
