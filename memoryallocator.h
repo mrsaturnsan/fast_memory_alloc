@@ -221,9 +221,9 @@ namespace ATL
          * @param memory 
          * @return void* 
          */
-        void* AlignCheck(void* memory) const noexcept
+        static void* AlignCheck(void* memory) noexcept
         {
-            size_t s = this->b_size;
+            size_t s = TypeAllocator<T, blocks>::b_size;
             return std::align(alignof(T), sizeof(T), memory, s);
         }
     };
