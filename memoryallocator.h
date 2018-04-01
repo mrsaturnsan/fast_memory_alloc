@@ -226,7 +226,7 @@ namespace ATL
          */
         static void* AlignCheck(void* memory) noexcept
         {
-            size_t s = TypeAllocator<T, blocks>::b_size;
+            size_t s = base::b_size;
             return std::align(alignof(T), sizeof(T), memory, s);
         }
     };
