@@ -2,37 +2,12 @@
 
 #include <iostream>
 
-struct MyStruct
-{
-    static ATL::TypeAllocator<MyStruct, 10> alloc;
-
-    int i;
-    int j;
-    int k;
-
-    MyStruct()
-    {
-        std::cout << "Constructed\n";
-    }
-
-    ~MyStruct()
-    {
-        std::cout << "Destructed\n";
-    }
-
-    GEN_CLASS_NEW_DEL(alloc)
-
-};
-
-ATL::TypeAllocator<MyStruct, 10> MyStruct::alloc;
-
-
 int main()
 {
-    MyStruct* ms = new MyStruct;
+    ATL::TypeAllocator<int, 100> ta;
 
-    delete ms;
-
+    int* i = ta.Allocate(0);
+    ta.Free(i);
     
     return 0;
 }

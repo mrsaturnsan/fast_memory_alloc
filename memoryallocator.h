@@ -13,7 +13,14 @@
 #include <memory>    /* std::align         */
 
 // macros to make integration easier if making a static class allocator
-#define CREATE_CLASS_NEW(_alloc_name) void* operator new(std::size_t) {return _alloc_name.MemoryAllocator::Allocate();}
+#define CREATE_CLASS_NEW(_alloc_name)                                               \
+void* operator new(std::size_t)                                                     \
+{                                                                                   \
+    void* mem = _alloc_name.AlignCheck(_alloc_name.MemoryAllocator::Allocate());    \
+    if (!mem) throw std::runtime_error("Allocation failed.");                       \
+    return mem;                                                                     \
+}                                                                                   \
+
 #define CREATE_CLASS_DELETE(_alloc_name) void operator delete(void* ptr) noexcept {_alloc_name.MemoryAllocator::Free(ptr);}
 #define GEN_CLASS_NEW_DEL(_alloc_name) CREATE_CLASS_NEW(_alloc_name) CREATE_CLASS_DELETE(_alloc_name)
 
@@ -47,137 +54,126 @@ namespace ATL
         // page of available blocks
         List* free_list_;
 
-        protected:
+        // meta data
+        static constexpr size_t pad_bytes = 2;
+        static constexpr size_t vp_size = sizeof(void*);
+        static constexpr size_t hb_size = vp_size + pad_bytes + block_size;
+        static constexpr size_t bytes_allocated = hb_size * blocks;
 
-            // meta data
-            static constexpr size_t pad_bytes = 2;
-            static constexpr size_t vp_size = sizeof(void*);
-            static constexpr size_t hb_size = vp_size + pad_bytes + block_size;
-            static constexpr size_t bytes_allocated = hb_size * blocks;
+    protected:
+
+        static constexpr size_t b_size = block_size;
         
-        public:
+    public:
             
-            /**
-             * @brief Construct a new Memory Allocator object.
-             * 
-             */
-            MemoryAllocator() : data_(nullptr), free_list_(nullptr)
+        /**
+         * @brief Construct a new Memory Allocator object.
+         * 
+         */
+        MemoryAllocator() : data_(nullptr), free_list_(nullptr)
+        {
+            data_ = new uchar[bytes_allocated];
+
+            std::memset(data_, 0, bytes_allocated);
+
+            for (size_t i = 0; i < blocks; ++i)
             {
-                data_ = new uchar[bytes_allocated];
-
-                std::memset(data_, 0, bytes_allocated);
-
-                for (size_t i = 0; i < blocks; ++i)
-                {
-                    std::memset(data_ + vp_size + (i * hb_size), Pattern::UNALLOCATED, pad_bytes);
-                    push_list(reinterpret_cast<List*>(data_ + (i * hb_size)));
-                }
+                std::memset(data_ + vp_size + (i * hb_size), Pattern::UNALLOCATED, pad_bytes);
+                push_list(reinterpret_cast<List*>(data_ + (i * hb_size)));
             }
+        }
 
-            /**
-             * @brief Destructor
-             * 
-             */
-            ~MemoryAllocator() noexcept
-            {
-                delete [] data_;
-            }
+        /**
+         * @brief Destructor
+         * 
+         */
+        ~MemoryAllocator() noexcept
+        {
+            delete [] data_;
+        }
 
-            /**
-             * @brief Allocates memory with O(1) performance.
-             * 
-             * @return void* 
-             */
-            void* Allocate()
-            {
-                if (!free_list_)
-                    throw std::runtime_error("Out of blocks.");
+        /**
+         * @brief Allocates memory with O(1) performance.
+         * 
+         * @return void* 
+         */
+        void* Allocate()
+        {
+            if (!free_list_) throw std::runtime_error("Out of blocks.");
 
-                uchar* memory = reinterpret_cast<uchar*>(free_list_) + vp_size;
+            uchar* memory = reinterpret_cast<uchar*>(free_list_) + vp_size;
 
-                // safety check
-                for (size_t i = 0; i < pad_bytes; ++i)
-                    if (memory[i] != Pattern::UNALLOCATED)
-                        throw std::runtime_error("Corrupted block detected!");
+            // safety check
+            for (size_t i = 0; i < pad_bytes; ++i)
+                if (memory[i] != Pattern::UNALLOCATED)
+                    throw std::runtime_error("Corrupted block detected!");
 
-                pop_list();
+            pop_list();
 
-                std::memset(memory, Pattern::ALLOCATED, pad_bytes);
+            std::memset(memory, Pattern::ALLOCATED, pad_bytes);
 
-                return memory + pad_bytes;
-            }
+            return memory + pad_bytes;
+        }
 
-            /**
-             * @brief Frees memory.
-             * 
-             * @param block 
-             */
-            void Free(void* block) noexcept
-            {
-                if (!block) std::abort();
+        /**
+         * @brief Frees memory.
+         * 
+         * @param block 
+         */
+        void Free(void* block) noexcept
+        {
+            if (!block) std::abort();
 
-                uchar* mem = reinterpret_cast<uchar*>(block) - pad_bytes;
+            uchar* mem = reinterpret_cast<uchar*>(block) - pad_bytes;
 
-                // safety check
-                for (size_t i = 0; i < pad_bytes; ++i)
-                    if (mem[i] != Pattern::ALLOCATED)
-                        std::abort();
+            // safety check
+            for (size_t i = 0; i < pad_bytes; ++i)
+                if (mem[i] != Pattern::ALLOCATED)
+                    std::abort();
 
-                std::memset(mem, Pattern::UNALLOCATED, pad_bytes);
+            std::memset(mem, Pattern::UNALLOCATED, pad_bytes);
 
-                push_list(reinterpret_cast<List*>(mem - vp_size));
-            }
+            push_list(reinterpret_cast<List*>(mem - vp_size));
+        }
 
-            /**
-             * @brief Whether or not there is room for more allocations.
-             * 
-             * @return true 
-             * @return false 
-             */
-            bool CanAllocate() const noexcept
-            {
-                return free_list_;
-            }
-            
-            // prevent copying of any kind
-            MemoryAllocator& operator=(MemoryAllocator& rhs) = delete;
-            MemoryAllocator(const MemoryAllocator& rhs) = delete;
-            MemoryAllocator(MemoryAllocator&& rhs) = delete;
+        /**
+         * @brief Whether or not there is room for more allocations.
+         * 
+         * @return true 
+         * @return false 
+         */
+        bool CanAllocate() const noexcept
+        {
+            return free_list_;
+        }
+        
+        // prevent copying of any kind
+        MemoryAllocator& operator=(MemoryAllocator& rhs) = delete;
+        MemoryAllocator(const MemoryAllocator& rhs) = delete;
+        MemoryAllocator(MemoryAllocator&& rhs) = delete;
 
-        private:
+    private:
 
-            /**
-             * @brief Pushes into internal list.
-             * 
-             * @param list 
-             */
-            void push_list(List* list) noexcept
-            {
-                list->next = free_list_;
-                free_list_ = list;
-            }
+        /**
+         * @brief Pushes into internal list.
+         * 
+         * @param list 
+         */
+        void push_list(List* list) noexcept
+        {
+            list->next = free_list_;
+            free_list_ = list;
+        }
 
-            /**
-             * @brief Pops from front.
-             * 
-             */
-            void pop_list() noexcept
-            {
-                free_list_ = free_list_->next;
-            }
+        /**
+         * @brief Pops from front.
+         * 
+         */
+        void pop_list() noexcept
+        {
+            free_list_ = free_list_->next;
+        }
     };
-
-    /**
-     * @brief Gets the least amount of space a block needs.
-     * 
-     * @tparam T 
-     * @return constexpr size_t 
-     */
-    template <typename T>
-    constexpr size_t CalculateBlockSize()
-    {
-        return alignof(T) + sizeof(T);
-    }
 
     /**
      * @brief Works with the MemoryAllocator to allocate for types.
@@ -186,11 +182,12 @@ namespace ATL
      * @tparam blocks 
      */
     template <typename T, size_t blocks>
-    struct TypeAllocator : public MemoryAllocator<CalculateBlockSize<T>(), blocks>
+    struct TypeAllocator : public MemoryAllocator<alignof(T) + sizeof(T), blocks>
     {
         static_assert(!std::is_same<T, void>::value, "Cannot allocate type void.");
 
-        using parent = MemoryAllocator<CalculateBlockSize<T>(), blocks>;
+        // the type of the parent class
+        using base = MemoryAllocator<alignof(T) + sizeof(T), blocks>;
 
         /**
          * @brief Allocates and constructs object.
@@ -203,13 +200,8 @@ namespace ATL
         T* Allocate(Args&&... args)
         {
             // get raw memory
-            void* memory = parent::Allocate();
-            size_t size = parent::hb_size - parent::pad_bytes;
-            void* aligned_storage = std::align(alignof(T), sizeof(T), memory, size);
-            
-            if (!aligned_storage)
-                throw std::runtime_error("Allocation failed.");
-                
+            void* aligned_storage = AlignCheck(base::Allocate());
+            if (!aligned_storage) throw std::runtime_error("Allocation failed.");
             return new(aligned_storage) T(args...);
         }
 
@@ -223,7 +215,19 @@ namespace ATL
             // safety check
             if (!block) std::abort();
             block->~T();
-            parent::Free(block);
+            base::Free(block);
+        }
+
+        /**
+         * @brief Ensures alignment safety.
+         * 
+         * @param memory 
+         * @return void* 
+         */
+        static void* AlignCheck(void* memory) noexcept
+        {
+            size_t s = TypeAllocator<T, blocks>::b_size;
+            return std::align(alignof(T), sizeof(T), memory, s);
         }
     };
 }
