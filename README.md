@@ -15,10 +15,10 @@ Ready-to-use fixed-size C++ memory allocator.
     // allocate 128 blocks of 32 bytes
     ATL::MemoryAllocator<32, 128> allocator;
 
-    int* i = allocator.Allocate<int>(10);
+    int* i = static_cast<int*>(allocator.Allocate());
     allocator.Free(i);
 
-## Using with a class
+## Class/Struct Usage
 
     #include "memoryallocator.h"
 
@@ -45,3 +45,42 @@ Ready-to-use fixed-size C++ memory allocator.
 ## Requirements
 
 - C++ 17 compliant compiler
+
+## Test Cases
+
+    #define SIZE 5000000
+
+    struct Test
+    {
+        char c[128];
+        float f;
+        int i;
+        unsigned u;
+    };
+
+    // Case 1
+    ATL::MemoryAllocator<sizeof(Test) + alignof(Test), SIZE> atl;
+    Test* tarr[SIZE];
+
+    for (size_t i = 0; i < SIZE; ++i)
+        tarr[i] = static_cast<Test*>(atl.Allocate());
+
+    for (size_t i = 0; i < SIZE; ++i)
+        atl.Free(tarr[i]);
+
+    // Case 2
+    for (size_t i = 0; i < SIZE; ++i)
+        tarr[i] = new Test;
+
+    for (size_t i = 0; i < SIZE; ++i)
+        delete tarr[i];
+
+    SIZE = 32 : 7 times faster
+    SIZE = 64 : 8 times faster
+    SIZE = 128 : 9 times faster
+    SIZE = 256 : 8.29 times faster
+    SIZE = 512 : 8.52 times faster
+    SIZE = 1024 : 9 times faster
+    SIZE = 2048 : 9.85 times faster
+    SIZE = 1000000 : 4.8 times faster
+    SIZE = 5000000 : 4.6 times faster
