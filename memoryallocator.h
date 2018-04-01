@@ -10,14 +10,12 @@
 
 #include <cstring>   /* std::memset        */
 #include <stdexcept> /* std::runtime_error */
-#include <memory>    /* std::align         */
-#include <iostream>
 
 // macros to make integration easier if making a static class allocator
 #define CREATE_CLASS_NEW(_alloc_name)                                               \
 void* operator new(std::size_t)                                                     \
 {                                                                                   \
-    void* mem = _alloc_name.AlignCheck(_alloc_name.MemoryAllocator::Allocate());    \
+    void* mem = _alloc_name.MemoryAllocator::Allocate();                            \
     if (!mem) throw std::runtime_error("Allocation failed.");                       \
     return mem;                                                                     \
 }                                                                                   \
