@@ -11,6 +11,7 @@
 #include <cstring>   /* std::memset        */
 #include <stdexcept> /* std::runtime_error */
 #include <memory>    /* std::align         */
+#include <iostream>
 
 // macros to make integration easier if making a static class allocator
 #define CREATE_CLASS_NEW(_alloc_name)                                               \
@@ -32,6 +33,11 @@ namespace ATL
         // safety checking
         static_assert(block_size >= 1, "Block size must be at least 1 byte.");
         static_assert(blocks >= 1, "At least 1 block must be allocated.");
+    
+    protected:
+        // meta data
+        static constexpr size_t b_size = block_size;
+        static constexpr size_t pad_bytes = 2;
 
         // internal memory type
         using uchar = unsigned char;
@@ -42,6 +48,8 @@ namespace ATL
             UNALLOCATED = 0xAA,
             ALLOCATED = 0xBB
         };
+    
+    private:
 
         // represents a list object
         struct List
@@ -55,14 +63,9 @@ namespace ATL
         List* free_list_;
 
         // meta data
-        static constexpr size_t pad_bytes = 2;
         static constexpr size_t vp_size = sizeof(void*);
         static constexpr size_t hb_size = vp_size + pad_bytes + block_size;
         static constexpr size_t bytes_allocated = hb_size * blocks;
-
-    protected:
-
-        static constexpr size_t b_size = block_size;
         
     public:
             
@@ -199,10 +202,7 @@ namespace ATL
         template <typename... Args>
         T* Allocate(Args&&... args)
         {
-            // get raw memory
-            void* aligned_storage = AlignCheck(base::Allocate());
-            if (!aligned_storage) throw std::runtime_error("Allocation failed.");
-            return new(aligned_storage) T(args...);
+            return new(base::Allocate()) T(args...);
         }
 
         /**
@@ -216,18 +216,6 @@ namespace ATL
             if (!block) std::abort();
             block->~T();
             base::Free(block);
-        }
-
-        /**
-         * @brief Ensures alignment safety.
-         * 
-         * @param memory 
-         * @return void* 
-         */
-        static void* AlignCheck(void* memory) noexcept
-        {
-            size_t s = base::b_size;
-            return std::align(alignof(T), sizeof(T), memory, s);
         }
     };
 }
